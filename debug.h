@@ -59,7 +59,7 @@ struct is_rai : std::is_same<typename std::iterator_traits<T>::iterator_category
 template <typename T> constexpr bool is_rai_v = is_rai<T>::value;
 
 
-std::string_view c_escape(const char& c) {
+constexpr std::string_view c_escape(const char& c) {
   if (c == '\0') {
     return "\\0";
   } else if (c == '\a') {
@@ -82,18 +82,18 @@ std::string_view c_escape(const char& c) {
     return "\\\'";
   } else if (c == '\"') {
     return "\\\"";
+  } else if (c == '\\') {
+    return "\\\\;
   } else {
     return std::string_view(&c, 1);
   }
 }
 
 
-template <typename T> void print_impl(std::ostream&, T&&);
+template <typename T> void print_impl(std::ostream&, T&& x);
 template <typename Tuple, std::size_t... Is>
-void print_tuple_impl(std::ostream& os, Tuple&& t, std::index_sequence<Is...>) {
-  (print_impl(os << (Is ? ',' : '<'), std::get<Is>(std::forward<Tuple>(t))), ...);
-  os << '>';
-}
+void print_tuple_impl(std::ostream& os, Tuple&& t, std::index_sequence<Is...>);
+
 template <typename T> void print_impl(std::ostream& os, T&& x) {
   using U = std::decay_t<T>;
   if constexpr (is_one_of_v<U, bool>) {
@@ -119,7 +119,7 @@ template <typename T> void print_impl(std::ostream& os, T&& x) {
     print_impl(os << ',', std::forward<T>(x).second);
     os << '>';
   } else if constexpr (is_tuple_v<U>) {
-    print_tuple_impl(os, std::forward<T>(x), std::make_index_sequence<std::tuple_size_v<T>>{});
+    print_tuple_impl(os, std::forward<T>(x), std::make_index_sequence<std::tuple_size_v<U>>{});
   } else if constexpr (has_begin_v<T>) {
     using Iterator = begin_type<T>;
     constexpr bool flag = is_rai_v<Iterator>;
@@ -143,6 +143,11 @@ template <typename T> void print_impl(std::ostream& os, T&& x) {
   } else {
     os << x;
   }
+}
+template <typename Tuple, std::size_t... Is>
+void print_tuple_impl(std::ostream& os, Tuple&& t, std::index_sequence<Is...>) {
+  (print_impl(os << (Is ? ',' : '<'), std::get<Is>(std::forward<Tuple>(t))), ...);
+  os << '>';
 }
 
 
