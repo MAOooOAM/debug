@@ -83,7 +83,7 @@ constexpr std::string_view c_escape(const char& c) {
   } else if (c == '\"') {
     return "\\\"";
   } else if (c == '\\') {
-    return "\\\\;
+    return "\\\\";
   } else {
     return std::string_view(&c, 1);
   }
