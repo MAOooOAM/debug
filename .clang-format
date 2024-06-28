@@ -1,0 +1,21 @@
+---
+BasedOnStyle: Google
+IndentWidth: 2
+---
+Language: Cpp
+ColumnLimit: 100
+MaxEmptyLinesToKeep: 2
+Standard: c++17
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+AlwaysBreakTemplateDeclarations: MultiLine
+BinPackArguments: false
+BinPackParameters: false
+BreakConstructorInitializers: AfterColon
+CompactNamespaces: false
+---

@@ -1,23 +1,14 @@
-#include <iostream>
-#include <string_view>
-
-
-namespace test {
-
-std::ostream* test_stream_ptr = &std::cout;
-void set_test_stream(std::ostream& os) { test_stream_ptr = &os; }
-
-}  // namespace test
-
-using test::set_test_stream;
+#define DEBUG_STREAM std::cout
+#include "debug.h"
 
 
 class TestBase {
  public:
+  virtual ~TestBase() {}
   void test() {
-    *test::test_stream_ptr << test_header() << std::endl;
+    DEBUG_STREAM << test_header() << std::endl;
     test_impl();
-    *test::test_stream_ptr << std::endl;
+    DEBUG_STREAM << std::endl;
   }
 
  private:
@@ -25,8 +16,10 @@ class TestBase {
   virtual void test_impl() const = 0;
 };
 
-#define DECLARE_TEST(NAME)                                        \
+#define DEFINE_TEST(NAME)                                         \
   class NAME : public TestBase {                                  \
+   public:                                                        \
+    virtual ~NAME() override {}                                   \
     virtual std::string_view test_header() const override {       \
       return "--------------------" #NAME "--------------------"; \
     }                                                             \

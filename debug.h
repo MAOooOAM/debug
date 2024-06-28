@@ -1,216 +1,233 @@
-#include <bitset>
+#ifndef debug
+
+
+#include <array>
+#include <deque>
 #include <iostream>
-#include <iterator>
+#include <list>
+#include <map>
 #include <queue>
+#include <set>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 
-#define __UNPACK_IMPL__(...) __VA_ARGS__
-#define __UNPACK__(PACK) __UNPACK_IMPL__ PACK
-
-#define __ARG1__(_1, ...) _1
-#define __ARG2__(_1, _2, ...) _2
-#define __ARG3__(_1, _2, _3, ...) _3
-#define __ARG4__(_1, _2, _3, _4, ...) _4
-#define __ARG64__(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, \
-                  _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34,  \
-                  _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50,  \
-                  _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, ...)       \
-  _64
-
-#define __RESQ64__                                                                                \
-  63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, \
-      39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, \
-      16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-
-#define __NARG_IMPL__(...) __ARG64__(__VA_ARGS__)
-#define __NARG__(...) __NARG_IMPL__(__VA_ARGS__, __RESQ64__)
-
-#define FOO_NAME_ARY(NAME, N) NAME##_##N##ARY
-#define FOO_NAME(NAME, N) FOO_NAME_ARY(NAME, N)
-/** Use
- *  #define FOO(...) FOO_NAME(FOO, __NARG__(__VA_ARGS__))(__VA_ARGS__)
- *  to define variable number of arguments.
- */
+#ifndef DEBUG_STREAM
+#define DEBUG_STREAM std::cerr
+#endif  // DEBUG_STREAM
 
 
-#define DECLARE_V_HELPER(...) FOO_NAME(DECLARE_V_HELPER, __NARG__(__VA_ARGS__))(__VA_ARGS__)
-#define DECLARE_V_HELPER_1ARY(NAME) DECLARE_V_HELPER_3ARY(NAME, (typename T), (T))
-#define DECLARE_V_HELPER_3ARY(NAME, PACK1, PACK2) \
-  template <__UNPACK__(PACK1)>                    \
-  constexpr typename NAME<__UNPACK__(PACK2)>::value_type NAME##_v = NAME<__UNPACK__(PACK2)>::value
+namespace mao {
 
+namespace traits {
 
 template <typename T, typename... Ts>
 struct is_one_of : std::disjunction<std::is_same<T, Ts>...> {};
-DECLARE_V_HELPER(is_one_of, (typename T, typename... Ts), (T, Ts...));
-
-
-template <typename T, template <typename...> class Template>
-struct is_specialization_of : std::false_type {};
-template <template <typename...> class Template, typename... Ts>
-struct is_specialization_of<Template<Ts...>, Template> : std::true_type {};
-DECLARE_V_HELPER(is_specialization_of, (typename T, template <typename...> class Template),
-                 (T, Template));
-
-
-#define DECLARE_IS_SPEC(...) FOO_NAME(DECLARE_IS_SPEC, __NARG__(__VA_ARGS__))(__VA_ARGS__)
-#define DECLARE_IS_SPEC_1ARY(NAME) DECLARE_SPEC_TRAITS(is_##NAME, NAME)
-#define DECLARE_IS_SPEC_2ARY(FIELD, NAME) DECLARE_SPEC_TRAITS(is_##NAME, FIELD::NAME)
-#define DECLARE_SPEC_TRAITS(SPEC, TEMP)                                 \
-  template <typename T> struct SPEC : is_specialization_of<T, TEMP> {}; \
-  DECLARE_V_HELPER(SPEC)
-
-DECLARE_IS_SPEC(std, pair);
-DECLARE_IS_SPEC(std, tuple);
-DECLARE_IS_SPEC(std, queue);
-DECLARE_IS_SPEC(std, priority_queue);
-
-
-template <typename T> using begin_type = decltype(std::begin(std::declval<T>()));
-template <typename, typename = void> struct has_begin_helper : std::false_type {};
-template <typename T> struct has_begin_helper<T, std::void_t<begin_type<T>>> : std::true_type {};
-template <typename T> using has_begin = has_begin_helper<T>;
-DECLARE_V_HELPER(has_begin);
-
+template <typename T, typename... Ts>
+inline constexpr bool is_one_of_v = is_one_of<T, Ts...>::value;
 
 template <typename T>
-struct is_rai : std::is_same<typename std::iterator_traits<T>::iterator_category,
-                             std::random_access_iterator_tag> {};
-DECLARE_V_HELPER(is_rai);
+struct is_string_like : is_one_of<T, std::string, std::string_view, const char*, char*, char[]> {};
+template <typename T> inline constexpr bool is_string_like_v = is_string_like<T>::value;
+
+template <typename T, template <typename...> class Template> struct is_spec_of : std::false_type {};
+template <template <typename...> class Template, typename... Ts>
+struct is_spec_of<Template<Ts...>, Template> : std::true_type {};
+template <typename T, template <typename...> class Template>
+inline constexpr bool is_spec_of_v = is_spec_of<T, Template>::value;
+
+template <typename T, template <typename...> class... Templates>
+struct is_spec_one_of : std::disjunction<is_spec_of<T, Templates>...> {};
+template <typename T, template <typename...> class... Templates>
+inline constexpr bool is_spec_one_of_v = is_spec_one_of<T, Templates...>::value;
+
+template <typename T> struct is_vector_like : is_spec_one_of<T, std::vector, std::deque> {};
+template <typename T> inline constexpr bool is_vector_like_v = is_vector_like<T>::value;
+
+template <typename T>
+struct is_line_like : is_spec_one_of<T, std::vector, std::deque, std::list> {};
+template <typename T> inline constexpr bool is_line_like_v = is_line_like<T>::value;
+
+template <typename T>
+struct is_stl_container_adapter : is_spec_one_of<T, std::queue, std::priority_queue> {};
+template <typename T>
+inline constexpr bool is_stl_container_adapter_v = is_stl_container_adapter<T>::value;
+
+template <typename T>
+struct is_set_like
+    : is_spec_one_of<T, std::set, std::multiset, std::unordered_set, std::unordered_multiset> {};
+template <typename T> inline constexpr bool is_set_like_v = is_set_like<T>::value;
+
+template <typename T>
+struct is_map_like
+    : is_spec_one_of<T, std::map, std::multimap, std::unordered_map, std::unordered_multimap> {};
+template <typename T> inline constexpr bool is_map_like_v = is_map_like<T>::value;
+
+}  // namespace traits
 
 
-constexpr std::string_view c_escape(const char& c) {
-  if (c == '\0') {
-    return "\\0";
-  } else if (c == '\a') {
-    return "\\a";
-  } else if (c == '\b') {
-    return "\\b";
-  } else if (c == '\t') {
-    return "\\t";
-  } else if (c == '\n') {
-    return "\\n";
-  } else if (c == '\v') {
-    return "\\v";
-  } else if (c == '\f') {
-    return "\\f";
-  } else if (c == '\r') {
-    return "\\r";
-  } else if (c == '\e') {
-    return "\\e";
-  } else if (c == '\'') {
-    return "\\\'";
-  } else if (c == '\"') {
-    return "\\\"";
-  } else if (c == '\\') {
-    return "\\\\";
+template <typename T, typename = void> struct PrinterWrapper {
+  static void print(const T& x) { DEBUG_STREAM << x; }
+};
+
+template <typename T> void print_impl(const T& x) { PrinterWrapper<T>::print(x); }
+
+void print_impl(const bool& x) { DEBUG_STREAM << (x ? "True" : "False"); }
+
+void print_impl(const char& x) {
+  if (x == '\0') {
+    DEBUG_STREAM << "\'\\0\'";
+  } else if (x == '\t') {
+    DEBUG_STREAM << "\'\\t\'";
+  } else if (x == '\n') {
+    DEBUG_STREAM << "\'\\n\'";
+  } else if (x == '\r') {
+    DEBUG_STREAM << "\'\\r\'";
+  } else if (x == '\'') {
+    DEBUG_STREAM << "\'\\\'\'";
+  } else if (x == '\"') {
+    DEBUG_STREAM << "\'\\\"\'";
+  } else if (x == '\\') {
+    DEBUG_STREAM << "\'\\\\\'";
   } else {
-    return std::string_view(&c, 1);
+    DEBUG_STREAM << '\'' << x << '\'';
   }
 }
 
+void print_impl(const signed char& x) { print_impl(static_cast<short>(x)); }
 
-template <typename T> void print_impl(std::ostream&, T&& x);
-template <typename Tuple, std::size_t... Is>
-void print_tuple_impl(std::ostream& os, Tuple&& t, std::index_sequence<Is...>);
+void print_impl(const unsigned char& x) { print_impl(static_cast<unsigned short>(x)); }
 
-template <typename T> void print_impl(std::ostream& os, T&& x) {
-  using U = std::decay_t<T>;
-  if constexpr (is_one_of_v<U, bool>) {
-    os << (x ? "True" : "False");
-  } else if constexpr (is_one_of_v<U, signed char>) {
-    os << static_cast<short>(x);
-  } else if constexpr (is_one_of_v<U, unsigned char>) {
-    os << static_cast<unsigned short>(x);
-  } else if constexpr (is_one_of_v<U, char>) {
-    os << '\'' << c_escape(x) << '\'';
-  } else if constexpr (is_one_of_v<U, char*, const char*>) {
-    os << '\"';
-    for (const char* ptr = x; *ptr; ptr++) os << c_escape(*ptr);
-    os << '\"';
-  } else if constexpr (is_one_of_v<U, std::string, std::string_view>) {
-    os << '\"';
-    for (const char& c : x) os << c_escape(c);
-    os << '\"';
-  } else if constexpr (is_one_of_v<U, std::vector<bool>>) {
-    for (auto&& b : x) os << b;
-  } else if constexpr (is_pair_v<U>) {
-    print_impl(os << '<', std::forward<T>(x).first);
-    print_impl(os << ',', std::forward<T>(x).second);
-    os << '>';
-  } else if constexpr (is_tuple_v<U>) {
-    print_tuple_impl(os, std::forward<T>(x), std::make_index_sequence<std::tuple_size_v<U>>{});
-  } else if constexpr (has_begin_v<T>) {
-    using Iterator = begin_type<T>;
-    constexpr bool flag = is_rai_v<Iterator>;
-    Iterator it = std::begin(x), ed = std::end(x);
-    os << (flag ? '[' : '{');
-    if (it != ed) {
-      print_impl(os, *it++);
-      while (it != ed) print_impl(os << ',', *it++);
+void print_impl(const std::vector<bool>& x) {
+  for (int a : x) {
+    DEBUG_STREAM << a;
+  }
+}
+
+template <typename T, size_t N> void print_impl(const std::array<T, N>& x) {
+  static_assert(N > 0);
+  DEBUG_STREAM << '[';
+  print_impl(x[0]);
+  for (size_t i = 1; i < N; ++i) {
+    DEBUG_STREAM << ',';
+    print_impl(x[1]);
+  }
+  DEBUG_STREAM << ']';
+}
+
+template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_string_like_v<T>>> {
+  static void print(const T& x) { DEBUG_STREAM << '\"' << x << '\"'; }
+};
+
+template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_line_like_v<T>>> {
+  static void print(const T& x) {
+    DEBUG_STREAM << '[';
+    if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
+      print_impl(*it);
+      while (++it != x.cend()) {
+        DEBUG_STREAM << ',';
+        print_impl(*it);
+      }
     }
-    os << (flag ? ']' : '}');
-  } else if constexpr (is_queue_v<U>) {
-    U a(x);
-    std::vector<typename U::value_type> b;
-    for (; !a.empty(); a.pop()) b.push_back(a.front());
-    print_impl(os, b);
-  } else if constexpr (is_priority_queue_v<U>) {
-    U a(x);
-    std::vector<typename U::value_type> b;
-    for (; !a.empty(); a.pop()) b.push_back(a.top());
-    print_impl(os, b);
-  } else {
-    os << x;
+    DEBUG_STREAM << ']';
   }
+};
+
+template <typename T>
+struct PrinterWrapper<T, std::enable_if_t<traits::is_stl_container_adapter_v<T>>> {
+  static void print(const T& x) {
+    struct Accessor : T {
+      using T::c;
+    };
+    print_impl(x.*&Accessor::c);
+  }
+};
+
+template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_set_like_v<T>>> {
+  static void print(const T& x) {
+    DEBUG_STREAM << '{';
+    if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
+      print_impl(*it);
+      while (++it != x.cend()) {
+        DEBUG_STREAM << ',';
+        print_impl(*it);
+      }
+    }
+    DEBUG_STREAM << '}';
+  }
+};
+
+template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_map_like_v<T>>> {
+  static void print(const T& x) {
+    DEBUG_STREAM << '{';
+    if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
+      print_impl(it->first);
+      DEBUG_STREAM << ':';
+      print_impl(it->second);
+      while (++it != x.cend()) {
+        DEBUG_STREAM << ',';
+        print_impl(it->first);
+        DEBUG_STREAM << ':';
+        print_impl(it->second);
+      }
+    }
+    DEBUG_STREAM << '}';
+  }
+};
+
+template <typename T1, typename T2> struct PrinterWrapper<std::pair<T1, T2>, void> {
+  static void print(const std::pair<T1, T2>& x) {
+    DEBUG_STREAM << '<';
+    print_impl(x.first);
+    DEBUG_STREAM << ',';
+    print_impl(x.second);
+    DEBUG_STREAM << '>';
+  }
+};
+
+template <typename T1, typename... Ts> struct PrinterWrapper<std::tuple<T1, Ts...>, void> {
+  static void print(const std::tuple<T1, Ts...>& x) {
+    DEBUG_STREAM << '<';
+    print_impl(std::get<0>(x));
+    print_tail(x, std::make_index_sequence<sizeof...(Ts)>{});
+    DEBUG_STREAM << '>';
+  }
+  template <size_t... Is>
+  static void print_tail(const std::tuple<T1, Ts...>& x, std::index_sequence<Is...>) {
+    (print_tail_impl(std::get<Is + 1>(x)), ...);
+  }
+  template <typename U> static void print_tail_impl(const U& x) {
+    DEBUG_STREAM << ',';
+    print_impl(x);
+  }
+};
+
+
+template <typename T> void debug_single(const T& x) {
+  DEBUG_STREAM << ' ';
+  print_impl(x);
 }
 
-template <typename Tuple, std::size_t... Is>
-void print_tuple_impl(std::ostream& os, Tuple&& t, std::index_sequence<Is...>) {
-  (print_impl(os << (Is ? ',' : '<'), std::get<Is>(std::forward<Tuple>(t))), ...);
-  os << '>';
+inline void debug_impl() { DEBUG_STREAM << std::endl; }
+
+template <typename T, typename... Ts> void debug_impl(const T& head, const Ts&... tail) {
+  debug_single(head);
+  debug_impl(tail...);
 }
 
-
-namespace dbg {
-
-std::ostream* debug_stream_ptr = &std::cerr;
-void set_debug_stream(std::ostream& os) { debug_stream_ptr = &os; }
-
-}  // namespace dbg
-
-using dbg::set_debug_stream;
-
-template <typename... Ts> void debug_impl(Ts&&... args) {
-  (..., print_impl(*dbg::debug_stream_ptr << ' ', std::forward<Ts>(args)));
-  *dbg::debug_stream_ptr << std::endl;
-}
-
-#define debug(...) *dbg::debug_stream_ptr << "[" #__VA_ARGS__ "] :", debug_impl(__VA_ARGS__)
+}  // namespace mao
 
 
-#undef __UNPACK_IMPL__
-#undef __UNPACK__
-#undef __ARG1__
-#undef __ARG2__
-#undef __ARG3__
-#undef __ARG4__
-#undef __ARG64__
-#undef __RESQ64__
-#undef __NARG_IMPL__
-#undef __NARG__
-#undef FOO_NAME_ARY
-#undef FOO_NAME
-#undef DECLARE_V_HELPER
-#undef DECLARE_V_HELPER_1ARY
-#undef DECLARE_V_HELPER_3ARY
-#undef DECLARE_IS_SPEC
-#undef DECLARE_IS_SPEC_1ARY
-#undef DECLARE_IS_SPEC_2ARY
-#undef DECLARE_SPEC_TRAITS
+#define debug(...)                          \
+  do {                                      \
+    DEBUG_STREAM << "[" #__VA_ARGS__ "] :"; \
+    mao::debug_impl(__VA_ARGS__);           \
+  } while (false)
+
+
+#endif  // debug
