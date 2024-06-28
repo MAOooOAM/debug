@@ -54,11 +54,6 @@ struct is_line_like : is_spec_one_of<T, std::vector, std::deque, std::list> {};
 template <typename T> inline constexpr bool is_line_like_v = is_line_like<T>::value;
 
 template <typename T>
-struct is_stl_container_adapter : is_spec_one_of<T, std::queue, std::priority_queue> {};
-template <typename T>
-inline constexpr bool is_stl_container_adapter_v = is_stl_container_adapter<T>::value;
-
-template <typename T>
 struct is_set_like
     : is_spec_one_of<T, std::set, std::multiset, std::unordered_set, std::unordered_multiset> {};
 template <typename T> inline constexpr bool is_set_like_v = is_set_like<T>::value;
@@ -68,74 +63,39 @@ struct is_map_like
     : is_spec_one_of<T, std::map, std::multimap, std::unordered_map, std::unordered_multimap> {};
 template <typename T> inline constexpr bool is_map_like_v = is_map_like<T>::value;
 
+template <typename T>
+struct is_stl_container_adapter : is_spec_one_of<T, std::queue, std::priority_queue> {};
+template <typename T>
+inline constexpr bool is_stl_container_adapter_v = is_stl_container_adapter<T>::value;
+
 }  // namespace traits
+
+
+void print_impl(const bool& x);
+void print_impl(const char& x);
+void print_impl(const signed char& x);
+void print_impl(const unsigned char& x);
+void print_impl(const std::vector<bool>& x);
+template <typename T> void print_impl(const T& x);
+template <typename T, size_t N> void print_impl(const std::array<T, N>& x);
+template <typename T> void print_iterable(const T& x, char open, char close, char delim = ',');
+template <typename T1, typename T2> void print_two(const T1& x, const T2& y, char delim = ',');
 
 
 template <typename T, typename = void> struct PrinterWrapper {
   static void print(const T& x) { DEBUG_STREAM << x; }
 };
 
-template <typename T> void print_impl(const T& x) { PrinterWrapper<T>::print(x); }
-
-void print_impl(const bool& x) { DEBUG_STREAM << (x ? "True" : "False"); }
-
-void print_impl(const char& x) {
-  if (x == '\0') {
-    DEBUG_STREAM << "\'\\0\'";
-  } else if (x == '\t') {
-    DEBUG_STREAM << "\'\\t\'";
-  } else if (x == '\n') {
-    DEBUG_STREAM << "\'\\n\'";
-  } else if (x == '\r') {
-    DEBUG_STREAM << "\'\\r\'";
-  } else if (x == '\'') {
-    DEBUG_STREAM << "\'\\\'\'";
-  } else if (x == '\"') {
-    DEBUG_STREAM << "\'\\\"\'";
-  } else if (x == '\\') {
-    DEBUG_STREAM << "\'\\\\\'";
-  } else {
-    DEBUG_STREAM << '\'' << x << '\'';
-  }
-}
-
-void print_impl(const signed char& x) { print_impl(static_cast<short>(x)); }
-
-void print_impl(const unsigned char& x) { print_impl(static_cast<unsigned short>(x)); }
-
-void print_impl(const std::vector<bool>& x) {
-  for (int a : x) {
-    DEBUG_STREAM << a;
-  }
-}
-
-template <typename T, size_t N> void print_impl(const std::array<T, N>& x) {
-  static_assert(N > 0);
-  DEBUG_STREAM << '[';
-  print_impl(x[0]);
-  for (size_t i = 1; i < N; ++i) {
-    DEBUG_STREAM << ',';
-    print_impl(x[1]);
-  }
-  DEBUG_STREAM << ']';
-}
-
 template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_string_like_v<T>>> {
   static void print(const T& x) { DEBUG_STREAM << '\"' << x << '\"'; }
 };
 
 template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_line_like_v<T>>> {
-  static void print(const T& x) {
-    DEBUG_STREAM << '[';
-    if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
-      print_impl(*it);
-      while (++it != x.cend()) {
-        DEBUG_STREAM << ',';
-        print_impl(*it);
-      }
-    }
-    DEBUG_STREAM << ']';
-  }
+  static void print(const T& x) { print_iterable(x, '[', ']'); }
+};
+
+template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_set_like_v<T>>> {
+  static void print(const T& x) { print_iterable(x, '{', '}'); }
 };
 
 template <typename T>
@@ -148,32 +108,14 @@ struct PrinterWrapper<T, std::enable_if_t<traits::is_stl_container_adapter_v<T>>
   }
 };
 
-template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_set_like_v<T>>> {
-  static void print(const T& x) {
-    DEBUG_STREAM << '{';
-    if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
-      print_impl(*it);
-      while (++it != x.cend()) {
-        DEBUG_STREAM << ',';
-        print_impl(*it);
-      }
-    }
-    DEBUG_STREAM << '}';
-  }
-};
-
 template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_map_like_v<T>>> {
   static void print(const T& x) {
     DEBUG_STREAM << '{';
     if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
-      print_impl(it->first);
-      DEBUG_STREAM << ':';
-      print_impl(it->second);
+      print_two(it->first, it->second, ':');
       while (++it != x.cend()) {
         DEBUG_STREAM << ',';
-        print_impl(it->first);
-        DEBUG_STREAM << ':';
-        print_impl(it->second);
+        print_two(it->first, it->second, ':');
       }
     }
     DEBUG_STREAM << '}';
@@ -183,9 +125,7 @@ template <typename T> struct PrinterWrapper<T, std::enable_if_t<traits::is_map_l
 template <typename T1, typename T2> struct PrinterWrapper<std::pair<T1, T2>, void> {
   static void print(const std::pair<T1, T2>& x) {
     DEBUG_STREAM << '<';
-    print_impl(x.first);
-    DEBUG_STREAM << ',';
-    print_impl(x.second);
+    print_two(x.first, x.second);
     DEBUG_STREAM << '>';
   }
 };
@@ -206,6 +146,79 @@ template <typename T1, typename... Ts> struct PrinterWrapper<std::tuple<T1, Ts..
     print_impl(x);
   }
 };
+
+
+void print_impl(const bool& x) { DEBUG_STREAM << (x ? "True" : "False"); }
+
+void print_impl(const char& x) {
+  switch (x) {
+    case '\0':
+      DEBUG_STREAM << "\'\\0\'";
+      break;
+    case '\t':
+      DEBUG_STREAM << "\'\\t\'";
+      break;
+    case '\n':
+      DEBUG_STREAM << "\'\\n\'";
+      break;
+    case '\r':
+      DEBUG_STREAM << "\'\\r\'";
+      break;
+    case '\'':
+      DEBUG_STREAM << "\'\\\'\'";
+      break;
+    case '\"':
+      DEBUG_STREAM << "\'\\\"\'";
+      break;
+    case '\\':
+      DEBUG_STREAM << "\'\\\\\'";
+      break;
+    default:
+      DEBUG_STREAM << '\'' << x << '\'';
+      break;
+  }
+}
+
+void print_impl(const signed char& x) { print_impl(static_cast<short>(x)); }
+
+void print_impl(const unsigned char& x) { print_impl(static_cast<unsigned short>(x)); }
+
+void print_impl(const std::vector<bool>& x) {
+  for (int a : x) {
+    DEBUG_STREAM << a;
+  }
+}
+
+template <typename T> void print_impl(const T& x) { PrinterWrapper<T>::print(x); }
+
+template <typename T, size_t N> void print_impl(const std::array<T, N>& x) {
+  static_assert(N > 0);
+  DEBUG_STREAM << '[';
+  print_impl(x[0]);
+  for (size_t i = 1; i < N; ++i) {
+    DEBUG_STREAM << ',';
+    print_impl(x[1]);
+  }
+  DEBUG_STREAM << ']';
+}
+
+template <typename T> void print_iterable(const T& x, char open, char close, char delim) {
+  DEBUG_STREAM << open;
+  if (typename T::const_iterator it = x.cbegin(); it != x.cend()) {
+    print_impl(*it);
+    while (++it != x.cend()) {
+      DEBUG_STREAM << delim;
+      print_impl(*it);
+    }
+  }
+  DEBUG_STREAM << close;
+}
+
+template <typename T1, typename T2> void print_two(const T1& x, const T2& y, char delim) {
+  print_impl(x);
+  DEBUG_STREAM << delim;
+  print_impl(y);
+}
 
 
 template <typename T> void debug_single(const T& x) {
